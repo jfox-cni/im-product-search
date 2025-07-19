@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Catalog - Sales Portal</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fuse.js/6.6.2/fuse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .search-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .search-controls {
+            display: grid;
+            grid-template-columns: 1fr auto auto;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            align-items: center;
+        }
+
+        .search-box {
+            position: relative;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border: 2px solid #e0e7ff;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .file-upload {
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .file-upload:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .clear-btn {
+            padding: 0.8rem 1.5rem;
+            background: #f8fafc;
+            color: #64748b;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .clear-btn:hover {
+            background: #e2e8f0;
+            transform: translateY(-1px);
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .filter-label {
+            font-weight: 600;
+            color: #4a5568;
+            font-size: 0.9rem;
+        }
+
+        .filter-select {
+            padding: 0.8rem;
+            border: 2px solid #e0e7ff;
+            border-radius: 8px;
+            background: white;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-top: 1px solid #e2e8f0;
+            margin-top: 1rem;
+            color: #64748b;
+        }
+
+        .results-section {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .table-container {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .results-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .results-table th:hover {
+            background: linear-gradient(135deg, #5a67d8, #6b46c1);
+        }
+
+        .results-table td {
+            padding: 1rem;
+            border-bottom: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+
+        .results-table tr:hover {
+            background: #f8fafc;
+            transform: translateX(4px);
+        }
+
+        .results-table tr:nth-child(even) {
+            background: rgba(102, 126, 234, 0.02);
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            padding: 2rem;
+            background: rgba(248, 250, 252, 0.8);
+        }
+
+        .pagination button {
+            padding: 0.8rem 1.2rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .pagination .current-page {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: #64748b;
+            font-size: 1.2rem;
+        }
+
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: #64748b;
+        }
+
+        .empty-state h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .search-controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters {
+                grid-template-columns: 1fr;
+            }
+            
+            .pagination {
+                flex-wrap: wrap;
+                gap: 0.5rem;
+            }
+            
+            .results-table {
+                font-size: 0.9rem;
+            }
+            
+            .results-table th,
+            .results-table td {
+                padding: 0.7rem;
+            }
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #fef08a 0%, #fef08a 100%);
+            background-size: 100% 0.2em;
+            background-position: 0 88%;
+            background-repeat: no-repeat;
+        }
+
+        .export-btn {
+            padding: 0.8rem 1.5rem;
+            background: #10b981;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        .export-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Product Catalog</h1>
+        <p>Powerful search and filtering for your entire product inventory</p>
+    </div>
+
+    <div class="container">
+        <div class="search-section">
+            <div class="search-controls">
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search products, manufacturers, part numbers... (supports fuzzy matching)">
+                </div>
+                <input type="file" id="csvFile" accept=".csv" class="file-upload" title="Upload CSV File">
+                <button id="clearBtn" class="clear-btn">Clear All</button>
+            </div>
+
+            <div class="filters" id="filtersContainer">
+                <!-- Dynamic filters will be populated here -->
+            </div>
+
+            <div class="stats">
+                <div>
+                    <span id="resultCount">0</span> products found
+                    <span id="totalCount" style="opacity: 0.7;"></span>
+                </div>
+                <button id="exportBtn" class="export-btn" style="display: none;">Export Results</button>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <div id="loadingState" class="loading" style="display: none;">
+                Loading your product catalog
+            </div>
+            
+            <div id="emptyState" class="empty-state">
+                <h3>Ready to Search</h3>
+                <p>Upload your CSV file to get started, or use the demo data to explore features.</p>
+            </div>
+
+            <div id="resultsContainer" style="display: none;">
+                <div class="table-container">
+                    <table class="results-table" id="resultsTable">
+                        <thead id="tableHeader"></thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ProductCatalogApp {
+            constructor() {
+                this.data = [];
+                this.filteredData = [];
+                this.displayData = [];
+                this.fuse = null;
+                this.currentPage = 1;
+                this.itemsPerPage = 50;
+                this.sortColumn = null;
+                this.sortDirection = 'asc';
+                this.filters = {};
+                this.columns = [];
+                
+                this.initializeElements();
+                this.bindEvents();
+                this.loadDemoData();
+            }
+
+            initializeElements() {
+                this.searchInput = document.getElementById('searchInput');
+                this.csvFile = document.getElementById('csvFile');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.loadingState = document.getElementById('loadingState');
+                this.emptyState = document.getElementById('emptyState');
+                this.resultsContainer = document.getElementById('resultsContainer');
+                this.tableHeader = document.getElementById('tableHeader');
+                this.tableBody = document.getElementById('tableBody');
+                this.pagination = document.getElementById('pagination');
+                this.resultCount = document.getElementById('resultCount');
+                this.totalCount = document.getElementById('totalCount');
+                this.filtersContainer = document.getElementById('filtersContainer');
+                this.exportBtn = document.getElementById('exportBtn');
+            }
+
+            bindEvents() {
+                this.searchInput.addEventListener('input', () => this.handleSearch());
+                this.csvFile.addEventListener('change', (e) => this.handleFileUpload(e));
+                this.clearBtn.addEventListener('click', () => this.clearAll());
+                this.exportBtn.addEventListener('click', () => this.exportResults());
+            }
+
+            loadDemoData() {
+                // Create sample data to demonstrate functionality
+                const demoData = [
+                    {
+                        'Product Name': 'HPE ProLiant DL380 Gen10',
+                        'Part Number': 'P02464-B21',
+                        'Manufacturer': 'HPE',
+                        'Category': 'Servers',
+                        'Description': 'HPE ProLiant DL380 Gen10 2U Rack Server with Intel Xeon processors',
+                        'Price': '$2,299.00',
+                        'Weight': '19.8 kg',
+                        'Availability': 'In Stock'
+                    },
+                    {
+                        'Product Name': 'HPE Networking Aruba 2930F Switch',
+                        'Part Number': 'JL253A',
+                        'Manufacturer': 'HPE Networking',
+                        'Category': 'Networking',
+                        'Description': 'HPE Aruba 2930F 24G 4SFP+ Switch with advanced Layer 3 capabilities',
+                        'Price': '$899.00',
+                        'Weight': '3.2 kg',
+                        'Availability': 'In Stock'
+                    },
+                    {
+                        'Product Name': 'Dell PowerEdge R740 Server',
+                        'Part Number': 'R740-001',
+                        'Manufacturer': 'Dell',
+                        'Category': 'Servers',
+                        'Description': 'Dell PowerEdge R740 2U Rack Server optimized for demanding workloads',
+                        'Price': '$2,199.00',
+                        'Weight': '18.5 kg',
+                        'Availability': 'Limited Stock'
+                    },
+                    {
+                        'Product Name': 'Cisco Catalyst 9200 Series Switch',
+                        'Part Number': 'C9200-24T-4G-E',
+                        'Manufacturer': 'Cisco',
+                        'Category': 'Networking',
+                        'Description': 'Cisco Catalyst 9200 24-port Gigabit Ethernet switch with 4x1G uplinks',
+                        'Price': '$1,245.00',
+                        'Weight': '4.1 kg',
+                        'Availability': 'In Stock'
+                    }
+                ];
+                
+                this.processData(demoData);
+                this.emptyState.innerHTML = '<h3>Demo Data Loaded</h3><p>Exploring with sample data. Upload your CSV file to search your actual product catalog.</p>';
+            }
+
+            handleFileUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                this.showLoading();
+                
+                Papa.parse(file, {
+                    header: true,
+                    skipEmptyLines: true,
+                    dynamicTyping: true,
+                    complete: (results) => {
+                        if (results.errors.length > 0) {
+                            console.warn('CSV parsing warnings:', results.errors);
+                        }
+                        this.processData(results.data);
+                    },
+                    error: (error) => {
+                        console.error('CSV parsing error:', error);
+                        this.hideLoading();
+                        alert('Error reading CSV file. Please check the file format.');
+                    }
+                });
+            }
+
+            processData(data) {
+                // Clean and prepare data
+                this.data = data.filter(row => {
+                    // Remove empty rows
+                    return Object.values(row).some(value => value !== null && value !== undefined && value !== '');
+                });
+
+                // Extract column names
+                this.columns = this.data.length > 0 ? Object.keys(this.data[0]) : [];
+                
+                // Initialize Fuse.js for fuzzy searching
+                this.initializeFuse();
+                
+                // Create dynamic filters
+                this.createFilters();
+                
+                // Initial display
+                this.filteredData = [...this.data];
+                this.updateDisplay();
+                this.hideLoading();
+                
+                this.totalCount.textContent = `(${this.data.length} total)`;
+            }
+
+            initializeFuse() {
+                const options = {
+                    includeScore: true,
+                    threshold: 0.4, // More lenient for partial matches
+                    ignoreLocation: true,
+                    keys: this.columns.map(col => col)
+                };
+                this.fuse = new Fuse(this.data, options);
+            }
+
+            createFilters() {
+                this.filtersContainer.innerHTML = '';
+                
+                // Determine which columns should have filters
+                const filterColumns = this.columns.filter(col => {
+                    const values = [...new Set(this.data.map(row => row[col]).filter(Boolean))];
+                    return values.length > 1 && values.length <= 100; // Only create filters for reasonable number of options
+                });
+
+                filterColumns.slice(0, 4).forEach(column => {
+                    const values = [...new Set(this.data.map(row => row[col]).filter(Boolean))].sort();
+                    
+                    const filterGroup = document.createElement('div');
+                    filterGroup.className = 'filter-group';
+                    
+                    const label = document.createElement('label');
+                    label.className = 'filter-label';
+                    label.textContent = column;
+                    
+                    const select = document.createElement('select');
+                    select.className = 'filter-select';
+                    select.dataset.column = column;
+                    
+                    const defaultOption = document.createElement('option');
+                    defaultOption.value = '';
+                    defaultOption.textContent = `All ${column}`;
+                    select.appendChild(defaultOption);
+                    
+                    values.forEach(value => {
+                        const option = document.createElement('option');
+                        option.value = value;
+                        option.textContent = value;
+                        select.appendChild(option);
+                    });
+                    
+                    select.addEventListener('change', () => this.handleFilterChange());
+                    
+                    filterGroup.appendChild(label);
+                    filterGroup.appendChild(select);
+                    this.filtersContainer.appendChild(filterGroup);
+                });
+            }
+
+            handleSearch() {
+                const query = this.searchInput.value.trim();
+                
+                if (query === '') {
+                    this.filteredData = [...this.data];
+                } else {
+                    const results = this.fuse.search(query);
+                    this.filteredData = results.map(result => result.item);
+                }
+                
+                this.applyFilters();
+                this.currentPage = 1;
+                this.updateDisplay();
+            }
+
+            handleFilterChange() {
+                // Collect all filter values
+                this.filters = {};
+                const selects = this.filtersContainer.querySelectorAll('select');
+                selects.forEach(select => {
+                    if (select.value) {
+                        this.filters[select.dataset.column] = select.value;
+                    }
+                });
+                
+                this.applyFilters();
+                this.currentPage = 1;
+                this.updateDisplay();
+            }
+
+            applyFilters() {
+                let data = this.searchInput.value.trim() === '' ? [...this.data] : this.filteredData;
+                
+                Object.entries(this.filters).forEach(([column, value]) => {
+                    data = data.filter(row => row[column] === value);
+                });
+                
+                this.filteredData = data;
+            }
+
+            updateDisplay() {
+                this.resultCount.textContent = this.filteredData.length;
+                
+                if (this.filteredData.length === 0) {
+                    this.showEmptyResults();
+                    return;
+                }
+                
+                // Sort data
+                if (this.sortColumn) {
+                    this.filteredData.sort((a, b) => {
+                        let aVal = a[this.sortColumn] || '';
+                        let bVal = b[this.sortColumn] || '';
+                        
+                        if (typeof aVal === 'string' && typeof bVal === 'string') {
+                            aVal = aVal.toLowerCase();
+                            bVal = bVal.toLowerCase();
+                        }
+                        
+                        if (this.sortDirection === 'asc') {
+                            return aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+                        } else {
+                            return aVal > bVal ? -1 : aVal < bVal ? 1 : 0;
+                        }
+                    });
+                }
+                
+                // Paginate
+                const start = (this.currentPage - 1) * this.itemsPerPage;
+                const end = start + this.itemsPerPage;
+                this.displayData = this.filteredData.slice(start, end);
+                
+                this.renderTable();
+                this.renderPagination();
+                this.showResults();
+            }
+
+            renderTable() {
+                // Header
+                const headerRow = document.createElement('tr');
+                this.columns.forEach(column => {
+                    const th = document.createElement('th');
+                    th.textContent = column;
+                    th.onclick = () => this.handleSort(column);
+                    th.style.cursor = 'pointer';
+                    
+                    if (this.sortColumn === column) {
+                        th.textContent += this.sortDirection === 'asc' ? ' ↑' : ' ↓';
+                    }
+                    
+                    headerRow.appendChild(th);
+                });
+                this.tableHeader.innerHTML = '';
+                this.tableHeader.appendChild(headerRow);
+                
+                // Body
+                this.tableBody.innerHTML = '';
+                this.displayData.forEach(row => {
+                    const tr = document.createElement('tr');
+                    this.columns.forEach(column => {
+                        const td = document.createElement('td');
+                        const value = row[column] || '';
+                        td.innerHTML = this.highlightSearch(value.toString());
+                        tr.appendChild(td);
+                    });
+                    this.tableBody.appendChild(tr);
+                });
+            }
+
+            highlightSearch(text) {
+                const query = this.searchInput.value.trim();
+                if (!query) return text;
+                
+                const regex = new RegExp(`(${query})`, 'gi');
+                return text.replace(regex, '<span class="highlight">$1</span>');
+            }
+
+            renderPagination() {
+                const totalPages = Math.ceil(this.filteredData.length / this.itemsPerPage);
+                this.pagination.innerHTML = '';
+                
+                if (totalPages <= 1) return;
+                
+                // Previous button
+                const prevBtn = document.createElement('button');
+                prevBtn.textContent = 'Previous';
+                prevBtn.disabled = this.currentPage === 1;
+                prevBtn.onclick = () => this.changePage(this.currentPage - 1);
+                this.pagination.appendChild(prevBtn);
+                
+                // Page numbers
+                const start = Math.max(1, this.currentPage - 2);
+                const end = Math.min(totalPages, this.currentPage + 2);
+                
+                for (let i = start; i <= end; i++) {
+                    const pageBtn = document.createElement('button');
+                    pageBtn.textContent = i;
+                    pageBtn.onclick = () => this.changePage(i);
+                    if (i === this.currentPage) {
+                        pageBtn.classList.add('current-page');
+                    }
+                    this.pagination.appendChild(pageBtn);
+                }
+                
+                // Next button
+                const nextBtn = document.createElement('button');
+                nextBtn.textContent = 'Next';
+                nextBtn.disabled = this.currentPage === totalPages;
+                nextBtn.onclick = () => this.changePage(this.currentPage + 1);
+                this.pagination.appendChild(nextBtn);
+                
+                // Page info
+                const info = document.createElement('span');
+                info.textContent = `Page ${this.currentPage} of ${totalPages}`;
+                info.style.margin = '0 1rem';
+                info.style.color = '#64748b';
+                this.pagination.appendChild(info);
+            }
+
+            handleSort(column) {
+                if (this.sortColumn === column) {
+                    this.sortDirection = this.sortDirection === 'asc' ? 'desc' : 'asc';
+                } else {
+                    this.sortColumn = column;
+                    this.sortDirection = 'asc';
+                }
+                this.updateDisplay();
+            }
+
+            changePage(page) {
+                this.currentPage = page;
+                this.updateDisplay();
+            }
+
+            clearAll() {
+                this.searchInput.value = '';
+                this.filters = {};
+                this.currentPage = 1;
+                this.sortColumn = null;
+                this.sortDirection = 'asc';
+                
+                // Reset filter selects
+                this.filtersContainer.querySelectorAll('select').forEach(select => {
+                    select.value = '';
+                });
+                
+                this.filteredData = [...this.data];
+                this.updateDisplay();
+            }
+
+            exportResults() {
+                const csv = Papa.unparse(this.filteredData);
+                const blob = new Blob([csv], { type: 'text/csv' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `product-catalog-filtered-${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }
+
+            showLoading() {
+                this.loadingState.style.display = 'block';
+                this.emptyState.style.display = 'none';
+                this.resultsContainer.style.display = 'none';
+            }
+
+            hideLoading() {
+                this.loadingState.style.display = 'none';
+            }
+
+            showEmptyResults() {
+                this.emptyState.innerHTML = '<h3>No Results Found</h3><p>Try adjusting your search terms or filters.</p>';
+                this.emptyState.style.display = 'block';
+                this.resultsContainer.style.display = 'none';
+                this.exportBtn.style.display = 'none';
+            }
+
+            showResults() {
+                this.emptyState.style.display = 'none';
+                this.resultsContainer.style.display = 'block';
+                this.exportBtn.style.display = 'inline-block';
+            }
+        }
+
+        // Initialize the app when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ProductCatalogApp();
+        });
+    </script>
+</body>
+</html>
